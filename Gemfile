@@ -19,7 +19,7 @@ group :development, :test do
   gem 'quiet_assets'
   gem 'dotenv-rails'
   gem 'byebug'
-  gem 'web-console', '~> 2.0'
+  gem 'web-console', '~> 2.1'
   gem 'spring'
 end
 
