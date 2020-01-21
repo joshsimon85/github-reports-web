@@ -2,6 +2,10 @@ Rails.application.routes.draw do
 
   root 'home#index'
 
+  get '/auth/:provider/callback', to: 'sessions#create'
+  get '/auth/failure', to: 'sessions#failure'
+  delete '/sessions', to: 'sessions#destroy'
+
   resources :gists
 
   # The priority is based upon order of creation: first created -> highest priority.

@@ -22,11 +22,24 @@ module GitHubAPI
   User = Struct.new(:name, :location, :public_repos)
   Event = Struct.new(:type, :repo_name)
   Repo = Struct.new(:name, :languages)
+  Gist = Struct.new(:id, :url, :description, :files, :public, :created_at)
+  GistFile = Struct.new(:name, :language, :content)
+  Page = Struct.new(:items, :page, :total_pages)
 
   class Client
 
     def initialize(token)
       @token = token
+    end
+
+    def delete_gist(gist_id)
+      url = "https://api.github.com/gists/#{gist_id}"
+
+      response = connection.delete(url)
+
+      unless response.status == 200
+        raise NonexistentGist, "No gist found with id #{gist_id}"
+      end
     end
 
     def user_info(username)
@@ -41,6 +54,24 @@ module GitHubAPI
         User.new(data["name"], data["location"], data["public_repos"])
       else
         raise NonexistentUser, "'#{username}' does not exist"
+      end
+    end
+
+    def gist_info(id)
+      url = "https://api.github.com/gists/#{id}"
+      response = connection.get(url)
+
+      if response.status == 200
+        gist = response.body
+        files = gist['files'].map do |(name, file)|
+          GistFile.new(name, file['language'], file['content'])
+        end
+        Gist.new(
+          gist['id'], gist['html_url'], gist['description'], files,
+          gist['public'], gist['created_at']
+        )
+      else
+        raise NonexistentGist, "No gist found with id #{id}"
       end
     end
 
@@ -136,13 +167,53 @@ module GitHubAPI
       raise RequestFailure, response.body['message'] unless response.status == 204
     end
 
+    def gists(page:1)
+      page = page.present? ? page.to_i : 1
+      url = "https://api.github.com/gists"
+
+      response = connection.get url
+
+      last_page_url = header_link(response.headers, 'last')
+
+      if last_page_url
+        uri = URI.parse(last_page_url)
+        total_pages = Rack::Utils.parse_query(uri.query)['page'].to_i
+      else
+        total_pages = page
+      end
+
+      items = response.body.map do |gist_data|
+        Gist.new(gist_data['id'], gist_data['url'], gist_data['description'], gist_data['public'], gist_data['created_at'])
+      end
+
+      Page.new(items, page, total_pages)
+    end
+
+    def header_link(headers, link_name)
+      header = headers['link']
+
+      if header
+        links = header.split(',').inject({}) do |sum, link|
+          url_part, rel_part = link.split(';')
+          url = url_part.tr('<>', '').strip
+          name = rel_part.match(/rel="(.*)"/)[1].strip
+          sum[name] = url
+          sum
+        end
+      else
+        links = {}
+      end
+
+      links[link_name]
+    end
+
     def connection
       @connection ||= Faraday::Connection.new do |builder|
         builder.use Middleware::StatusCheck
         builder.use Middleware::Authentication, @token
         builder.use Middleware::JSONParsing
-        builder.use Middleware::Logging
-        builder.use Middleware::Cache, Storage::Redis.new
+        builder.use Middleware::Logging, Rails.logger
+        builder.use Middleware::Cache, Rails.cache
         builder.adapter Faraday.default_adapter
       end
     end

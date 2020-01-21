@@ -25,10 +25,33 @@
             <td><%= link_to gist.description.present? ? gist.description : "untitled", gist_path(gist.id) %></td>
             <td><% if gist.public %><span class="glyphicon glyphicon-eye-open" /><% end %></td>
               <td><%= gist.created_at %></td>
-              <td class="delete-button"></td>
+              <td class="delete-button"><%= link_to 'Delete', gist_path(gist.id), method: :delete, class: 'btn btn-danger', data: { confirm: 'Delete this gist?'} %></td>
           </tr>
         <% end %>
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-12">
+    <nav>
+      <ul class="pager">
+        <% if @gists.page > 1 %>
+          <li class="previous">
+            <%= link_to(page: @gists.page - 1) do %>
+              <span class="glyphicon glyphicon-arrow-left"></span> Previous Page
+            <% end %>
+          </li>
+        <% end %>
+        <% if @gists.page < @gists.total_pages %>
+          <li class="next">
+            <%= link_to(page: @gists.page + 1) do %>
+              Next Page <span class="glyphicon glyphicon-arrow-right"></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </nav>
   </div>
 </div>

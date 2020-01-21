@@ -22,4 +22,8 @@ class ApplicationController < ActionController::Base
       redirect_to root_path
     end
   end
+
+  def clear_gists_cache
+    Rails.cache.delete_matched "^https://api.github.com/gists"
+  end
 end
